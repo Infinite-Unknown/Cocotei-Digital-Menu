@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Order, OrderStatus } from "@/lib/types";
 import { formatPrice, formatTime } from "@/lib/utils";
 import { useRealtimeRefresh } from "@/lib/use-realtime";
+import { useCart } from "@/lib/cart-store";
 
 const flow: OrderStatus[] = ["confirmed", "preparing", "ready", "served"];
 const labels: Record<OrderStatus, string> = {
@@ -23,8 +24,20 @@ const labels: Record<OrderStatus, string> = {
 export function OrderStatusView({ initial }: { initial: Order }) {
   const router = useRouter();
   const search = useSearchParams();
+  const { setRecentOrder, clearRecentOrder } = useCart();
   const order = initial;
   const justPaid = search.get("paid") === "1";
+
+  // Remember the most-recent order so the customer can navigate away (back to
+  // /menu, close & reopen the tab) and still get back here via the header strip.
+  useEffect(() => {
+    if (order.status === "served" || order.status === "cancelled") {
+      // Give them ~12s to read the served/cancelled state before the link disappears
+      const t = setTimeout(() => clearRecentOrder(), 12_000);
+      return () => clearTimeout(t);
+    }
+    setRecentOrder(order.id);
+  }, [order.id, order.status, setRecentOrder, clearRecentOrder]);
 
   // Realtime: push-based updates when this specific order row changes.
   useRealtimeRefresh({

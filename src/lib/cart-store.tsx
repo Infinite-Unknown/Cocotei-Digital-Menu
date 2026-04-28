@@ -19,15 +19,20 @@ type CartCtx = {
   clear: () => void;
   setTable: (t: string) => void;
   totalCount: number;
+  recentOrderId: string | null;
+  setRecentOrder: (id: string) => void;
+  clearRecentOrder: () => void;
 };
 
 const Ctx = createContext<CartCtx | null>(null);
 const STORAGE_KEY = "cocotei_cart_v1";
 const TABLE_KEY = "cocotei_table_v1";
+const RECENT_KEY = "cocotei_recent_order_v1";
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [tableNumber, setTableNumber] = useState<string | null>(null);
+  const [recentOrderId, setRecentOrderId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -36,6 +41,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (raw) setItems(JSON.parse(raw));
       const t = localStorage.getItem(TABLE_KEY);
       if (t) setTableNumber(t);
+      const r = localStorage.getItem(RECENT_KEY);
+      if (r) setRecentOrderId(r);
     } catch {}
     setHydrated(true);
   }, []);
@@ -49,6 +56,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!hydrated) return;
     if (tableNumber) localStorage.setItem(TABLE_KEY, tableNumber);
   }, [tableNumber, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (recentOrderId) localStorage.setItem(RECENT_KEY, recentOrderId);
+    else localStorage.removeItem(RECENT_KEY);
+  }, [recentOrderId, hydrated]);
 
   const api = useMemo<CartCtx>(
     () => ({
@@ -77,8 +90,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       clear: () => setItems([]),
       setTable: (t) => setTableNumber(t),
       totalCount: items.reduce((sum, i) => sum + i.quantity, 0),
+      recentOrderId,
+      setRecentOrder: (id) => setRecentOrderId(id),
+      clearRecentOrder: () => setRecentOrderId(null),
     }),
-    [items, tableNumber],
+    [items, tableNumber, recentOrderId],
   );
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

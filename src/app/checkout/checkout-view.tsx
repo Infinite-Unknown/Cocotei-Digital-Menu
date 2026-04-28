@@ -20,7 +20,7 @@ const allMethods: Array<{
   stripe: boolean;
 }> = [
   { id: "cash",     label: "Cash",                  hint: "Pay at counter when served",      stripe: false },
-  { id: "tng",      label: "Touch 'n Go eWallet",   hint: "Scan & pay (mock — not in Stripe MY)", stripe: false },
+  { id: "tng",      label: "Touch 'n Go eWallet",   hint: "Sign in with phone + OTP",         stripe: false },
   { id: "card",     label: "Credit / Debit Card",   hint: "Visa, Mastercard, Amex",          stripe: true  },
   { id: "grabpay",  label: "GrabPay",               hint: "Grab eWallet",                    stripe: true  },
   { id: "applepay", label: "Apple Pay",             hint: "One tap (rides on card)",         stripe: true  },
@@ -93,6 +93,26 @@ export function CheckoutView({ stripeEnabled }: { stripeEnabled: boolean }) {
       return;
     }
 
+    // ── Touch 'n Go eWallet: redirect to TnG hosted checkout ─────────────
+    // Mock today; structure matches a real TnG-direct or Billplz DuitNow flow
+    // so swapping in production is just changing the API endpoint.
+    if (method === "tng") {
+      try {
+        const r = await fetch("/api/tng/checkout", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(orderInput),
+        });
+        const data = (await r.json()) as { url?: string; error?: string };
+        if (!r.ok || !data.url) return fail(data.error || "TnG checkout error");
+        clear();
+        window.location.href = data.url;
+        return;
+      } catch (e) {
+        return fail(e instanceof Error ? e.message : "Network error");
+      }
+    }
+
     // ── Stripe Checkout (real card / wallet / FPX / GrabPay) ─────────────
     if (usesStripe) {
       try {
@@ -137,9 +157,11 @@ export function CheckoutView({ stripeEnabled }: { stripeEnabled: boolean }) {
   const payLabel =
     method === "cash"
       ? `Place order — ${formatPrice(total)}`
-      : usesStripe
-        ? `Pay ${formatPrice(total)} via Stripe`
-        : `Pay ${formatPrice(total)}`;
+      : method === "tng"
+        ? `Pay ${formatPrice(total)} via TnG`
+        : usesStripe
+          ? `Pay ${formatPrice(total)} via Stripe`
+          : `Pay ${formatPrice(total)}`;
 
   return (
     <div className="pb-28">
@@ -246,9 +268,11 @@ export function CheckoutView({ stripeEnabled }: { stripeEnabled: boolean }) {
               {submitting
                 ? method === "cash"
                   ? "Sending to kitchen…"
-                  : usesStripe
-                    ? "Redirecting to Stripe…"
-                    : "Processing…"
+                  : method === "tng"
+                    ? "Redirecting to TnG…"
+                    : usesStripe
+                      ? "Redirecting to Stripe…"
+                      : "Processing…"
                 : payLabel}
             </Button>
 

@@ -8,29 +8,30 @@ import { useCart } from "@/lib/cart-store";
 import { getItemById } from "@/lib/mock-data";
 import { formatPrice, cn } from "@/lib/utils";
 import { createOrderAction } from "./actions";
+import { PaymentIcon, type PaymentMethod } from "@/components/payment-icon";
 
-type Method = "card" | "applepay" | "grabpay" | "fpx" | "tng" | "cash";
+type Method = PaymentMethod;
 
+// Order optimised for restaurant speed: fastest (cash) at the top.
 const allMethods: Array<{
   id: Method;
   label: string;
   hint: string;
-  icon: string;
   stripe: boolean;
 }> = [
-  { id: "card", label: "Credit / Debit Card", hint: "Visa, Mastercard, Amex", icon: "💳", stripe: true },
-  { id: "applepay", label: "Apple Pay", hint: "One tap (rides on card)", icon: "", stripe: true },
-  { id: "grabpay", label: "GrabPay", hint: "eWallet", icon: "🟢", stripe: true },
-  { id: "tng", label: "Touch 'n Go eWallet", hint: "Mock — not in Stripe MY", icon: "🔵", stripe: false },
-  { id: "fpx", label: "FPX Online Banking", hint: "MY banks", icon: "🏦", stripe: true },
-  { id: "cash", label: "Cash", hint: "Pay at counter when served", icon: "💵", stripe: false },
+  { id: "cash",     label: "Cash",                  hint: "Pay at counter when served",      stripe: false },
+  { id: "tng",      label: "Touch 'n Go eWallet",   hint: "Scan & pay (mock — not in Stripe MY)", stripe: false },
+  { id: "card",     label: "Credit / Debit Card",   hint: "Visa, Mastercard, Amex",          stripe: true  },
+  { id: "grabpay",  label: "GrabPay",               hint: "Grab eWallet",                    stripe: true  },
+  { id: "applepay", label: "Apple Pay",             hint: "One tap (rides on card)",         stripe: true  },
 ];
 
 export function CheckoutView({ stripeEnabled }: { stripeEnabled: boolean }) {
   const router = useRouter();
   const search = useSearchParams();
   const { items, clear, tableNumber } = useCart();
-  const [method, setMethod] = useState<Method>("card");
+  // Default to cash — fastest path for in-restaurant ordering.
+  const [method, setMethod] = useState<Method>("cash");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cancelledNotice, setCancelledNotice] = useState(
@@ -207,7 +208,7 @@ export function CheckoutView({ stripeEnabled }: { stripeEnabled: boolean }) {
                           : "border-[var(--color-border)] hover:border-[var(--color-gold)]/40",
                       )}
                     >
-                      <span className="text-2xl w-8 text-center">{m.icon}</span>
+                      <PaymentIcon method={m.id} />
                       <span className="flex-1">
                         <span className="block font-medium">{m.label}</span>
                         <span className="block text-xs text-[var(--color-muted)]">
